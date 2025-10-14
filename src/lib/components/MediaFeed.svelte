@@ -132,6 +132,11 @@
 		};
 	});
 
+	// Scroll to latest event
+	function scrollToLatest() {
+		scrollToIndex(0);
+	}
+
 	// Keyboard navigation
 	function handleKeydown(keyboardEvent: KeyboardEvent) {
 		switch (keyboardEvent.key) {
@@ -143,11 +148,22 @@
 			case 'k':
 				scrollToIndex(currentIndex - 1);
 				break;
+			case 'Home':
+				scrollToLatest();
+				break;
 		}
 	}
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
+
+{#if currentIndex > 0}
+	<button class="back-to-latest" on:click={scrollToLatest} title="Back to latest">
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<path d="M18 15l-6-6-6 6"/>
+		</svg>
+	</button>
+{/if}
 
 <div 
 	class="feed-container" 
@@ -215,6 +231,29 @@
 	@keyframes spin {
 		0% { transform: rotate(0deg); }
 		100% { transform: rotate(360deg); }
+	}
+
+	.back-to-latest {
+		position: fixed;
+		top: 20px;
+		left: 20px;
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: white;
+		padding: 8px;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 100;
+	}
+
+	.back-to-latest:hover {
+		background: rgba(255, 255, 255, 0.2);
+		border-color: rgba(255, 255, 255, 0.3);
+		transform: scale(1.05);
 	}
 
 

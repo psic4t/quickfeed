@@ -3,6 +3,7 @@ export interface Config {
 }
 
 const defaultRelays = [
+  'wss://nostr.wine',
   'wss://nostr.data.haus',
   'wss://relay.damus.io',
   'wss://relay.nostr.band',
