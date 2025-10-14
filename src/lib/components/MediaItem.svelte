@@ -1,11 +1,140 @@
 <script lang="ts">
 	import type { MediaEvent } from '$lib/types';
+	import { onMount, onDestroy } from 'svelte';
 
 	export let event: MediaEvent;
+
+	let showJsonOverlay = false;
 
 	$: isVideo = event.kind === 22;
 	$: primaryMedia = event.media?.[0];
 	$: hasMultipleMedia = (event.media?.length || 0) > 1;
+
+	function toggleJsonOverlay() {
+		showJsonOverlay = !showJsonOverlay;
+		
+		if (showJsonOverlay) {
+			createOverlay();
+		} else {
+			removeOverlay();
+		}
+	}
+
+	function getEventJson(): string {
+		return JSON.stringify(event, null, 2);
+	}
+
+	function createOverlay() {
+		// Remove any existing overlay
+		removeOverlay();
+		
+		const overlay = document.createElement('div');
+		overlay.className = 'json-overlay-portal';
+		overlay.style.cssText = `
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(0, 0, 0, 0.8);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			z-index: 1000;
+			backdrop-filter: blur(4px);
+		`;
+		
+		const content = document.createElement('div');
+		content.className = 'json-content-portal';
+		content.style.cssText = `
+			background: #1a1a1a;
+			border: 1px solid #333;
+			border-radius: 12px;
+			max-width: 90vw;
+			max-height: 90vh;
+			width: 600px;
+			overflow: hidden;
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+		`;
+		
+		const header = document.createElement('div');
+		header.className = 'json-header-portal';
+		header.style.cssText = `
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 1rem 1.5rem;
+			border-bottom: 1px solid #333;
+			background: #222;
+		`;
+		
+		const title = document.createElement('h3');
+		title.textContent = 'Event JSON';
+		title.style.cssText = `
+			margin: 0;
+			color: white;
+			font-size: 1.1rem;
+		`;
+		
+		const closeBtn = document.createElement('button');
+		closeBtn.textContent = '×';
+		closeBtn.style.cssText = `
+			background: none;
+			border: none;
+			color: #999;
+			font-size: 1.5rem;
+			cursor: pointer;
+			padding: 0;
+			width: 30px;
+			height: 30px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 4px;
+			transition: all 0.2s ease;
+		`;
+		
+		const pre = document.createElement('pre');
+		pre.className = 'json-text-portal';
+		pre.textContent = getEventJson();
+		pre.style.cssText = `
+			padding: 1.5rem;
+			margin: 0;
+			color: #e0e0e0;
+			font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+			font-size: 0.85rem;
+			line-height: 1.4;
+			overflow: auto;
+			max-height: calc(90vh - 80px);
+			white-space: pre-wrap;
+			word-wrap: break-word;
+		`;
+		
+		header.appendChild(title);
+		header.appendChild(closeBtn);
+		content.appendChild(header);
+		content.appendChild(pre);
+		overlay.appendChild(content);
+		
+		// Event listeners
+		overlay.addEventListener('click', toggleJsonOverlay);
+		closeBtn.addEventListener('click', toggleJsonOverlay);
+		content.addEventListener('click', (e) => e.stopPropagation());
+		
+		document.body.appendChild(overlay);
+	}
+
+	function removeOverlay() {
+		const existing = document.querySelector('.json-overlay-portal');
+		if (existing) {
+			existing.remove();
+		}
+	}
+
+	// Cleanup overlay when component is destroyed
+	onDestroy(() => {
+		removeOverlay();
+	});
 
 	function formatTimeAgo(timestamp: number): string {
 		const now = Math.floor(Date.now() / 1000);
@@ -101,6 +230,13 @@
 					<div class="author-id">{event.pubkey}</div>
 				</div>
 			</div>
+			<button class="json-button" on:click={toggleJsonOverlay} title="View JSON">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z"/>
+					<path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+					<path d="M2 12h20"/>
+				</svg>
+			</button>
 		</div>
 	</div>
 </div>
@@ -228,6 +364,25 @@
 		font-size: 0.75rem;
 		color: rgba(255, 255, 255, 0.5);
 		font-family: monospace;
+	}
+
+	.json-button {
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: white;
+		padding: 8px;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.json-button:hover {
+		background: rgba(255, 255, 255, 0.2);
+		border-color: rgba(255, 255, 255, 0.3);
+		transform: scale(1.05);
 	}
 
 	@media (max-width: 768px) {
