@@ -645,5 +645,21 @@
 			height: 32px;
 			font-size: 12px;
 		}
+
+		.footer {
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+
+		.json-button {
+			flex-shrink: 0;
+			padding: 6px;
+			min-width: 36px;
+			min-height: 36px;
+		}
+
+		.author-name {
+			max-width: 150px;
+		}
 	}
 </style>
