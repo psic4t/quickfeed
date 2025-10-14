@@ -1,4 +1,4 @@
-# Agent Guidelines for scrollr
+# Agent Guidelines for quickfeed
 
 ## Commands
 
