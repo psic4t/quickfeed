@@ -127,6 +127,7 @@
 		height: 100vh;
 		width: 100vw;
 		overflow-y: hidden;
+		overflow-x: hidden;
 		scroll-snap-type: y mandatory;
 		scroll-behavior: smooth;
 	}
@@ -136,6 +137,7 @@
 		width: 100vw;
 		scroll-snap-align: start;
 		position: relative;
+		overflow-x: hidden;
 	}
 
 

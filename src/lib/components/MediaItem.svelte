@@ -299,6 +299,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		overflow-x: hidden;
 	}
 
 	.media-container {
@@ -369,6 +370,7 @@
 		background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
 		padding: 2rem;
 		color: white;
+		overflow-x: hidden;
 	}
 
 	.header {
@@ -403,12 +405,16 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: 1rem;
+		max-width: 100%;
 	}
 
 	.author {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+		flex: 1;
+		min-width: 0; /* Important for flexbox truncation */
 	}
 
 	.author-avatar {
@@ -430,15 +436,32 @@
 		object-fit: cover;
 	}
 
+	.author-info {
+		flex: 1;
+		min-width: 0; /* Important for text truncation */
+	}
+
 	.author-name {
 		font-weight: 500;
 		font-size: 0.9rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 200px;
 	}
 
 	.author-id {
 		font-size: 0.75rem;
 		color: rgba(255, 255, 255, 0.5);
 		font-family: monospace;
+		word-break: break-all;
+		overflow-wrap: break-word;
+		max-width: 280px; /* Optimized for 63-character npub addresses */
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
 	}
 
 	.json-button {
