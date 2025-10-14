@@ -1,14 +1,37 @@
 <script lang="ts">
 	import type { MediaEvent } from '$lib/types';
+	import type { ProfileMetadata } from '$lib/nostr';
 	import { onMount, onDestroy } from 'svelte';
+	import { nip19 } from 'nostr-tools';
 
 	export let event: MediaEvent;
 	export let isActive = false;
 
 	let showJsonOverlay = false;
 	let shouldLoadMedia = false;
+	let profileMetadata: ProfileMetadata | null = null;
+	let npub: string;
 
-	// Load media only when item becomes active
+	// Convert pubkey to npub format
+	$: npub = nip19.npubEncode(event.pubkey);
+
+	// Load profile metadata when component becomes active
+	$: if (isActive && !profileMetadata) {
+		loadProfileMetadata();
+	}
+
+	async function loadProfileMetadata() {
+		try {
+			// Import NostrService dynamically to avoid circular dependencies
+			const { NostrService } = await import('$lib/nostr');
+			const nostrService = new NostrService();
+			await nostrService.connect();
+			profileMetadata = await nostrService.getProfileMetadata(event.pubkey);
+			nostrService.close();
+		} catch (error) {
+			console.error('Error loading profile metadata:', error);
+		}
+	}
 	$: if (isActive && !shouldLoadMedia) {
 		shouldLoadMedia = true;
 	}
@@ -243,13 +266,17 @@
 		<div class="footer">
 			<div class="author">
 				<div class="author-avatar">
-					{event.pubkey.slice(0, 2).toUpperCase()}
+					{#if profileMetadata?.picture}
+						<img src={profileMetadata.picture} alt="Profile" class="profile-image" />
+					{:else}
+						{event.pubkey.slice(0, 2).toUpperCase()}
+					{/if}
 				</div>
 				<div class="author-info">
 					<div class="author-name">
-						{event.pubkey.slice(0, 8)}...{event.pubkey.slice(-8)}
+						{profileMetadata?.display_name || profileMetadata?.name || `${event.pubkey.slice(0, 8)}...${event.pubkey.slice(-8)}`}
 					</div>
-					<div class="author-id">{event.pubkey}</div>
+					<div class="author-id">{npub}</div>
 				</div>
 			</div>
 			<button class="json-button" on:click={toggleJsonOverlay} title="View JSON">
@@ -394,6 +421,13 @@
 		justify-content: center;
 		font-weight: 600;
 		font-size: 14px;
+		overflow: hidden;
+	}
+
+	.profile-image {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 
 	.author-name {

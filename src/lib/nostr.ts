@@ -2,9 +2,18 @@ import { SimplePool, type Event } from 'nostr-tools';
 import { getConfig } from './config';
 import type { MediaEvent, MediaItem, ImetaData } from './types';
 
+export interface ProfileMetadata {
+  name?: string;
+  display_name?: string;
+  picture?: string;
+  about?: string;
+  nip05?: string;
+}
+
 export class NostrService {
   private pool: SimplePool;
   private relays: string[];
+  private profileCache: Map<string, ProfileMetadata> = new Map();
 
   constructor() {
     this.pool = new SimplePool();
@@ -184,6 +193,39 @@ export class NostrService {
     } catch (error) {
       console.error('Error fetching historical media:', error);
       return [];
+    }
+  }
+
+  async getProfileMetadata(pubkey: string): Promise<ProfileMetadata | null> {
+    // Check cache first
+    if (this.profileCache.has(pubkey)) {
+      return this.profileCache.get(pubkey)!;
+    }
+
+    try {
+      const events = await this.pool.querySync(this.relays, {
+        kinds: [0], // Metadata event
+        authors: [pubkey],
+        limit: 1,
+      });
+
+      if (events.length > 0) {
+        const event = events[0];
+        try {
+          const metadata = JSON.parse(event.content) as ProfileMetadata;
+          // Cache the result
+          this.profileCache.set(pubkey, metadata);
+          return metadata;
+        } catch (parseError) {
+          console.error('Error parsing profile metadata:', parseError);
+          return null;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error fetching profile metadata:', error);
+      return null;
     }
   }
 
