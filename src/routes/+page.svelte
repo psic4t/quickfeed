@@ -4,6 +4,7 @@
 	import { NostrService } from '$lib/nostr';
 	import type { MediaEvent } from '$lib/types';
 	import MediaFeed from '$lib/components/MediaFeed.svelte';
+	import { PerformanceMonitor } from '$lib/performance';
 
 	let nostrService: NostrService;
 	let mediaEvents: MediaEvent[] = [];
@@ -33,6 +34,8 @@
 	$: currentTag = $page.url.searchParams.get('tag');
 
 	onMount(async () => {
+		const endTimer = PerformanceMonitor.startTimer('page-initialization');
+		
 		try {
 			connectionStatus = 'connecting';
 			nostrService = new NostrService();
@@ -41,29 +44,33 @@
 			
 			// Load historical events asynchronously
 			connectionStatus = 'loading';
-			isLoadingHistorical = true;
 			
 			// Start loading historical media in background
+			const historicalTimer = PerformanceMonitor.startTimer('load-historical-media');
 			nostrService.getHistoricalMedia(20)
 				.then(historical => {
+					historicalTimer();
 					// Sort by created_at timestamp (newest first)
 					mediaEvents = historical.sort((a, b) => b.created_at - a.created_at);
 					connectionStatus = 'connected';
 				})
 				.catch(err => {
+					historicalTimer();
 					console.error('Error loading historical media:', err);
 					error = 'Failed to load historical media';
 					connectionStatus = 'error';
-				})
-				.finally(() => {
-					isLoadingHistorical = false;
 				});
 			
 			// Subscribe to new events
 			nostrService.subscribeToMediaFeed(
 				(event) => {
+					const eventTimer = PerformanceMonitor.startTimer('process-new-event');
 					// Add new event and maintain sort order (newest first)
-					mediaEvents = [event, ...mediaEvents].sort((a, b) => b.created_at - a.created_at).slice(0, 100);
+					// Use more efficient array operations
+					const newEvents = [event, ...mediaEvents];
+					newEvents.sort((a, b) => b.created_at - a.created_at);
+					mediaEvents = newEvents.slice(0, 100);
+					eventTimer();
 				},
 				(err) => {
 					error = err.message;
@@ -75,6 +82,15 @@
 			connectionStatus = 'error';
 		} finally {
 			isConnecting = false;
+			endTimer();
+			
+			// Log performance metrics in development
+			if (import.meta.env.DEV) {
+				setTimeout(() => {
+					console.log('Performance Metrics:');
+					PerformanceMonitor.logMetrics();
+				}, 5000);
+			}
 		}
 	});
 

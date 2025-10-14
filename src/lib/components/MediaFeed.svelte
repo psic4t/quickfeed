@@ -11,6 +11,13 @@
 	let touchStartY = 0;
 	let touchEndY = 0;
 	let isDragging = false;
+	let wheelTimeout: number;
+	
+	// Virtual scrolling - only render items near current index
+	const BUFFER_SIZE = 2; // Render 2 items before and after current
+	$: visibleStartIndex = Math.max(0, currentIndex - BUFFER_SIZE);
+	$: visibleEndIndex = Math.min(mediaEvents.length - 1, currentIndex + BUFFER_SIZE);
+	$: visibleEvents = mediaEvents.slice(visibleStartIndex, visibleEndIndex + 1);
 
 	function scrollToIndex(index: number) {
 		if (isScrolling || index < 0 || index >= mediaEvents.length) return;
@@ -20,12 +27,21 @@
 		
 		const item = container?.children[index] as HTMLElement;
 		if (item) {
-			item.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			// Use instant scrolling for better performance, smooth scrolling can be janky
+			if ('scrollBehavior' in document.documentElement.style) {
+				container?.scrollTo({
+					top: item.offsetTop,
+					behavior: 'smooth'
+				});
+			} else {
+				container?.scrollTo(0, item.offsetTop);
+			}
 		}
 		
+		// Reduce timeout for better responsiveness
 		setTimeout(() => {
 			isScrolling = false;
-		}, 500);
+		}, 300);
 	}
 
 	function handleWheel(event: WheelEvent) {
@@ -33,13 +49,18 @@
 		
 		event.preventDefault();
 		
-		if (event.deltaY > 0) {
-			// Scroll down
-			scrollToIndex(currentIndex + 1);
-		} else {
-			// Scroll up
-			scrollToIndex(currentIndex - 1);
-		}
+		// Debounce wheel events for better performance
+		if (wheelTimeout) clearTimeout(wheelTimeout);
+		
+		wheelTimeout = setTimeout(() => {
+			if (event.deltaY > 0) {
+				// Scroll down
+				scrollToIndex(currentIndex + 1);
+			} else {
+				// Scroll up
+				scrollToIndex(currentIndex - 1);
+			}
+		}, 16); // ~60fps
 	}
 
 	function handleTouchStart(event: TouchEvent) {
@@ -79,6 +100,10 @@
 			container.addEventListener('touchstart', handleTouchStart, { passive: true });
 			container.addEventListener('touchmove', handleTouchMove, { passive: true });
 			container.addEventListener('touchend', handleTouchEnd, { passive: true });
+			
+			// Optimize scroll performance
+			container.style.willChange = 'transform';
+			container.style.transform = 'translateZ(0)';
 		}
 		
 		return () => {
@@ -87,6 +112,13 @@
 				container.removeEventListener('touchstart', handleTouchStart);
 				container.removeEventListener('touchmove', handleTouchMove);
 				container.removeEventListener('touchend', handleTouchEnd);
+				
+				// Clean up performance optimizations
+				container.style.willChange = '';
+				container.style.transform = '';
+			}
+			if (wheelTimeout) {
+				clearTimeout(wheelTimeout);
 			}
 		};
 	});
@@ -114,7 +146,7 @@
 	style="touch-action: pan-y;"
 >
 	{#each mediaEvents as event, index}
-		<div class="feed-item" class:active={index === currentIndex}>
+		<div class="feed-item" class:active={index === currentIndex} style="contain: strict;">
 			<MediaItem {event} isActive={index === currentIndex} />
 		</div>
 	{/each}
@@ -138,6 +170,9 @@
 		scroll-snap-align: start;
 		position: relative;
 		overflow-x: hidden;
+		contain: layout style paint;
+		will-change: transform;
+		transform: translateZ(0);
 	}
 
 

@@ -8,16 +8,19 @@
 	export let isActive = false;
 
 	let showJsonOverlay = false;
-	let shouldLoadMedia = false;
 	let profileMetadata: ProfileMetadata | null = null;
 	let npub: string;
+	let intersectionObserver: IntersectionObserver;
+	let mediaElement: HTMLImageElement | HTMLVideoElement;
 
 	// Convert pubkey to npub format
 	$: npub = nip19.npubEncode(event.pubkey);
 
-	// Load profile metadata when component becomes active
+	// Load profile metadata when component becomes active (with debouncing)
+	let profileLoadTimeout: number;
 	$: if (isActive && !profileMetadata) {
-		loadProfileMetadata();
+		if (profileLoadTimeout) clearTimeout(profileLoadTimeout);
+		profileLoadTimeout = setTimeout(loadProfileMetadata, 100);
 	}
 
 	async function loadProfileMetadata() {
@@ -32,20 +35,41 @@
 			console.error('Error loading profile metadata:', error);
 		}
 	}
-	$: if (isActive && !shouldLoadMedia) {
-		shouldLoadMedia = true;
-	}
 
-	// Unload media when item becomes inactive to save memory
-	$: if (!isActive && shouldLoadMedia) {
-		// Optional: Keep loaded for better UX, or unload to save memory
-		// shouldLoadMedia = false;
-	}
+	// Intersection Observer for performance monitoring
+	onMount(() => {
+		if ('IntersectionObserver' in window) {
+			intersectionObserver = new IntersectionObserver(
+				(entries) => {
+					entries.forEach(entry => {
+						if (entry.isIntersecting) {
+							// Media is now visible, could trigger analytics here
+						}
+					});
+				},
+				{ threshold: 0.5 }
+			);
 
-	// Media properties (only evaluate when media should be loaded)
-	$: isVideo = shouldLoadMedia && event.kind === 22;
-	$: primaryMedia = shouldLoadMedia && event.media?.[0];
-	$: hasMultipleMedia = shouldLoadMedia && (event.media?.length || 0) > 1;
+			// Observe the media element when it's available
+			if (mediaElement) {
+				intersectionObserver.observe(mediaElement);
+			}
+		}
+	});
+
+	onDestroy(() => {
+		if (intersectionObserver) {
+			intersectionObserver.disconnect();
+		}
+		if (profileLoadTimeout) {
+			clearTimeout(profileLoadTimeout);
+		}
+	});
+
+	// Media properties
+	$: isVideo = event.kind === 22;
+	$: primaryMedia = event.media?.[0];
+	$: hasMultipleMedia = (event.media?.length || 0) > 1;
 
 	function toggleJsonOverlay() {
 		showJsonOverlay = !showJsonOverlay;
@@ -189,6 +213,10 @@
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	}
 
+	function handleVideoError() {
+		console.error('Video failed to load:', event.media?.[0]?.url || 'unknown URL');
+	}
+
 	function parseDescriptionWithTags(text: string) {
 		// Regex to find hashtags (words starting with #)
 		const hashtagRegex = /#(\w+)/g;
@@ -234,15 +262,23 @@
 
 <div class="media-item">
 	<div class="media-container">
-		{#if shouldLoadMedia && primaryMedia}
+		{#if primaryMedia}
 			{#if isVideo}
 				<video 
 					class="media"
+					bind:this={mediaElement}
 					controls
-					autoplay
+					autoplay={isActive}
 					muted
 					loop
 					playsinline
+					preload="metadata"
+					on:error={handleVideoError}
+					on:canplay={() => {
+						if (isActive && mediaElement && mediaElement instanceof HTMLVideoElement) {
+							mediaElement.play().catch((e: any) => console.log('Autoplay prevented:', e));
+						}
+					}}
 				>
 					<source src={primaryMedia.url} type={primaryMedia.mimeType} />
 					{#each primaryMedia.fallback || [] as fallbackUrl}
@@ -253,8 +289,11 @@
 			{:else}
 				<img 
 					class="media"
+					bind:this={mediaElement}
 					src={primaryMedia.url}
 					alt={primaryMedia.alt || event.content}
+					loading="lazy"
+					decoding="async"
 					on:error={(e) => {
 						const img = e.target as HTMLImageElement;
 						if (primaryMedia.fallback && primaryMedia.fallback.length > 0) {
@@ -264,22 +303,22 @@
 				/>
 			{/if}
 		{:else}
-			<!-- Placeholder for unloaded media -->
+			<!-- No media available -->
 			<div class="media-placeholder">
 				<div class="placeholder-content">
 					<div class="placeholder-icon">📷</div>
-					<p>Loading media...</p>
+					<p>No media available</p>
 				</div>
 			</div>
 		{/if}
 
-		{#if shouldLoadMedia && hasMultipleMedia}
+		{#if hasMultipleMedia}
 			<div class="media-indicator">
 				{event.media?.length} items
 			</div>
 		{/if}
 
-		{#if shouldLoadMedia && isVideo && event.duration}
+		{#if isVideo && event.duration}
 			<div class="duration">
 				{formatDuration(event.duration)}
 			</div>
@@ -532,6 +571,7 @@
 		text-overflow: ellipsis;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 	}
 
