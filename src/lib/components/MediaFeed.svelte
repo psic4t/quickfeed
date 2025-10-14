@@ -43,14 +43,17 @@
 		
 		const item = container?.children[index] as HTMLElement;
 		if (item) {
-			// Use instant scrolling for faster response
-			container?.scrollTo(0, item.offsetTop);
+			// Use smooth scrolling animation
+			container?.scrollTo({
+				top: item.offsetTop,
+				behavior: 'smooth'
+			});
 		}
 		
-		// Reduce timeout for better responsiveness
+		// Allow more time for smooth animation to complete
 		setTimeout(() => {
 			isScrolling = false;
-		}, 100);
+		}, 300);
 	}
 
 	function handleWheel(event: WheelEvent) {
@@ -193,7 +196,7 @@
 		overflow-y: hidden;
 		overflow-x: hidden;
 		scroll-snap-type: y mandatory;
-		scroll-behavior: auto;
+		scroll-behavior: smooth;
 	}
 
 	.feed-item {
@@ -205,6 +208,11 @@
 		contain: layout style paint;
 		will-change: transform;
 		transform: translateZ(0);
+		transition: opacity 0.2s ease;
+	}
+
+	.feed-item:not(.active) {
+		opacity: 0.95;
 	}
 
 	.loading-more {
