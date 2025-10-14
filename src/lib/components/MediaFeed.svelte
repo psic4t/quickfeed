@@ -27,21 +27,14 @@
 		
 		const item = container?.children[index] as HTMLElement;
 		if (item) {
-			// Use instant scrolling for better performance, smooth scrolling can be janky
-			if ('scrollBehavior' in document.documentElement.style) {
-				container?.scrollTo({
-					top: item.offsetTop,
-					behavior: 'smooth'
-				});
-			} else {
-				container?.scrollTo(0, item.offsetTop);
-			}
+			// Use instant scrolling for faster response
+			container?.scrollTo(0, item.offsetTop);
 		}
 		
 		// Reduce timeout for better responsiveness
 		setTimeout(() => {
 			isScrolling = false;
-		}, 300);
+		}, 100);
 	}
 
 	function handleWheel(event: WheelEvent) {
@@ -60,7 +53,7 @@
 				// Scroll up
 				scrollToIndex(currentIndex - 1);
 			}
-		}, 16); // ~60fps
+		}, 8); // ~120fps for faster response
 	}
 
 	function handleTouchStart(event: TouchEvent) {
@@ -161,7 +154,7 @@
 		overflow-y: hidden;
 		overflow-x: hidden;
 		scroll-snap-type: y mandatory;
-		scroll-behavior: smooth;
+		scroll-behavior: auto;
 	}
 
 	.feed-item {
