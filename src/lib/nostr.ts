@@ -174,13 +174,16 @@ export class NostrService {
     try {
       const kinds = [20, 22]; // Picture and short video events
 
+      // Fetch more events to account for deduplication and filtering
+      const fetchLimit = Math.ceil(limit * 1.5); // Fetch 50% more to ensure we get enough unique events
+
       // Use querySync with async iterator for better performance
       const events = await this.pool.querySync(this.relays, {
         kinds: kinds,
-        limit: limit,
+        limit: fetchLimit,
       });
 
-      // Process events asynchronously in parallel
+      // Process events asynchronously in parallel first
       const mediaPromises = events.map(async (event) => {
         const mediaEvent = this.parseEvent(event);
         return mediaEvent && mediaEvent.media && mediaEvent.media.length > 0 ? mediaEvent : null;
@@ -189,7 +192,13 @@ export class NostrService {
       const mediaResults = await Promise.all(mediaPromises);
       const mediaEvents = mediaResults.filter((event): event is MediaEvent => event !== null);
 
-      return mediaEvents.sort((a, b) => b.created_at - a.created_at);
+      // Now deduplicate by ID after filtering for valid media events
+      const uniqueMediaEvents = Array.from(
+        new Map(mediaEvents.map((event) => [event.id, event])).values()
+      );
+
+      // Sort and limit to requested number
+      return uniqueMediaEvents.sort((a, b) => b.created_at - a.created_at).slice(0, limit);
     } catch (error) {
       console.error('Error fetching historical media:', error);
       return [];

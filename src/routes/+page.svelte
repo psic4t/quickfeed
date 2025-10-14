@@ -14,6 +14,7 @@
 	let connectionStatus: 'connecting' | 'connected' | 'error' | 'loading' = 'connecting';
 	let isLoadingHistorical = false;
 	let currentTag: string | null = null;
+	let seenEventIds: Set<string> = new Set();
 
 	// Filter events by tag
 	function filterEventsByTag(events: MediaEvent[], tag: string | null): MediaEvent[] {
@@ -47,10 +48,11 @@
 			
 			// Start loading historical media in background
 			const historicalTimer = PerformanceMonitor.startTimer('load-historical-media');
-			nostrService.getHistoricalMedia(20)
+			nostrService.getHistoricalMedia(30) // Request more events to account for deduplication
 				.then(historical => {
 					historicalTimer();
-					// Sort by created_at timestamp (newest first)
+					// Add all historical events to seen set and sort by created_at timestamp (newest first)
+					historical.forEach(event => seenEventIds.add(event.id));
 					mediaEvents = historical.sort((a, b) => b.created_at - a.created_at);
 					connectionStatus = 'connected';
 				})
@@ -65,8 +67,14 @@
 			nostrService.subscribeToMediaFeed(
 				(event) => {
 					const eventTimer = PerformanceMonitor.startTimer('process-new-event');
-					// Add new event and maintain sort order (newest first)
-					// Use more efficient array operations
+					// Check if we've already seen this event
+					if (seenEventIds.has(event.id)) {
+						eventTimer();
+						return; // Skip duplicate
+					}
+					
+					// Mark as seen and add to events
+					seenEventIds.add(event.id);
 					const newEvents = [event, ...mediaEvents];
 					newEvents.sort((a, b) => b.created_at - a.created_at);
 					mediaEvents = newEvents.slice(0, 100);
