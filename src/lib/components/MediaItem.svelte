@@ -268,6 +268,12 @@
 		url.searchParams.set('tag', tagName);
 		window.location.href = url.toString();
 	}
+
+	function navigateToUser(username: string) {
+		const url = new URL(window.location.href);
+		url.searchParams.set('user', username);
+		window.location.href = url.toString();
+	}
 </script>
 
 <div class="media-item">
@@ -376,9 +382,13 @@
 					{/if}
 				</div>
 				<div class="author-info">
-					<div class="author-name">
+					<button 
+						class="author-name" 
+						on:click={() => navigateToUser(event.pubkey)}
+						title="Filter by this user"
+					>
 						{profileMetadata?.display_name || profileMetadata?.name || `${event.pubkey.slice(0, 8)}...${event.pubkey.slice(-8)}`}
-					</div>
+					</button>
 					<div class="author-id">{npub}</div>
 				</div>
 			</div>
@@ -568,6 +578,19 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		max-width: 200px;
+		background: none;
+		border: none;
+		color: white;
+		cursor: pointer;
+		padding: 0;
+		text-align: left;
+		font-family: inherit;
+		transition: color 0.2s ease;
+	}
+
+	.author-name:hover {
+		color: #667eea;
+		text-decoration: underline;
 	}
 
 	.author-id {

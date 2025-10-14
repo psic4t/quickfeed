@@ -17,6 +17,7 @@
 	let hasMoreEvents = true;
 	let oldestLoadedTimestamp: number | null = null;
 	let currentTag: string | null = null;
+	let currentUser: string | null = null;
 	let seenEventIds: Set<string> = new Set();
 
 	// Filter events by tag
@@ -31,11 +32,24 @@
 		});
 	}
 
-	// Update filtered events when mediaEvents or tag changes
-	$: filteredEvents = filterEventsByTag(mediaEvents, currentTag);
+	// Filter events by user
+	function filterEventsByUser(events: MediaEvent[], user: string | null): MediaEvent[] {
+		if (!user) return events;
+		
+		return events.filter(event => {
+			// Check if pubkey matches the user filter
+			return event.pubkey === user;
+		});
+	}
 
-	// Update current tag when URL changes
+	// Update filtered events when mediaEvents, tag, or user changes
+	$: filteredEvents = currentUser 
+		? filterEventsByUser(mediaEvents, currentUser)
+		: filterEventsByTag(mediaEvents, currentTag);
+
+	// Update current tag and user when URL changes
 	$: currentTag = $page.url.searchParams.get('tag');
+	$: currentUser = $page.url.searchParams.get('user');
 
 	// Load more events function with retry logic
 	async function loadMoreEvents(retryCount = 0) {
@@ -193,6 +207,8 @@
 				<h2>No Media Found</h2>
 				{#if currentTag}
 					<p>No media events found with tag "#{currentTag}".</p>
+				{:else if currentUser}
+					<p>No media events found for this user.</p>
 				{:else}
 					<p>No media events found on the connected relays.</p>
 				{/if}
@@ -201,6 +217,11 @@
 			{#if currentTag}
 				<div class="filter-info">
 					<span>Filtered by tag: <strong>#{currentTag}</strong></span>
+					<a href="/" class="clear-filter">Clear filter</a>
+				</div>
+			{:else if currentUser}
+				<div class="filter-info">
+					<span>Filtered by user</span>
 					<a href="/" class="clear-filter">Clear filter</a>
 				</div>
 			{/if}
