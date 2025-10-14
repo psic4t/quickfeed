@@ -39,6 +39,7 @@
     "workbox-window": "^7.3.0"
   },
   "dependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
     "nostr-tools": "^2.17.0"
   }
 }
