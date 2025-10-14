@@ -25,7 +25,8 @@
 			// Start loading historical media in background
 			nostrService.getHistoricalMedia(20)
 				.then(historical => {
-					mediaEvents = historical;
+					// Sort by created_at timestamp (newest first)
+					mediaEvents = historical.sort((a, b) => b.created_at - a.created_at);
 					connectionStatus = 'connected';
 				})
 				.catch(err => {
@@ -40,7 +41,8 @@
 			// Subscribe to new events
 			nostrService.subscribeToMediaFeed(
 				(event) => {
-					mediaEvents = [event, ...mediaEvents].slice(0, 100);
+					// Add new event and maintain sort order (newest first)
+					mediaEvents = [event, ...mediaEvents].sort((a, b) => b.created_at - a.created_at).slice(0, 100);
 				},
 				(err) => {
 					error = err.message;
