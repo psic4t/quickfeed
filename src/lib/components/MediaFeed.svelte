@@ -115,7 +115,7 @@
 >
 	{#each mediaEvents as event, index}
 		<div class="feed-item" class:active={index === currentIndex}>
-			<MediaItem {event} />
+			<MediaItem {event} isActive={index === currentIndex} />
 		</div>
 	{/each}
 </div>

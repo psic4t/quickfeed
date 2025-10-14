@@ -3,12 +3,26 @@
 	import { onMount, onDestroy } from 'svelte';
 
 	export let event: MediaEvent;
+	export let isActive = false;
 
 	let showJsonOverlay = false;
+	let shouldLoadMedia = false;
 
-	$: isVideo = event.kind === 22;
-	$: primaryMedia = event.media?.[0];
-	$: hasMultipleMedia = (event.media?.length || 0) > 1;
+	// Load media only when item becomes active
+	$: if (isActive && !shouldLoadMedia) {
+		shouldLoadMedia = true;
+	}
+
+	// Unload media when item becomes inactive to save memory
+	$: if (!isActive && shouldLoadMedia) {
+		// Optional: Keep loaded for better UX, or unload to save memory
+		// shouldLoadMedia = false;
+	}
+
+	// Media properties (only evaluate when media should be loaded)
+	$: isVideo = shouldLoadMedia && event.kind === 22;
+	$: primaryMedia = shouldLoadMedia && event.media?.[0];
+	$: hasMultipleMedia = shouldLoadMedia && (event.media?.length || 0) > 1;
 
 	function toggleJsonOverlay() {
 		showJsonOverlay = !showJsonOverlay;
@@ -155,7 +169,7 @@
 
 <div class="media-item">
 	<div class="media-container">
-		{#if primaryMedia}
+		{#if shouldLoadMedia && primaryMedia}
 			{#if isVideo}
 				<video 
 					class="media"
@@ -184,15 +198,23 @@
 					}}
 				/>
 			{/if}
+		{:else}
+			<!-- Placeholder for unloaded media -->
+			<div class="media-placeholder">
+				<div class="placeholder-content">
+					<div class="placeholder-icon">📷</div>
+					<p>Loading media...</p>
+				</div>
+			</div>
 		{/if}
 
-		{#if hasMultipleMedia}
+		{#if shouldLoadMedia && hasMultipleMedia}
 			<div class="media-indicator">
 				{event.media?.length} items
 			</div>
 		{/if}
 
-		{#if isVideo && event.duration}
+		{#if shouldLoadMedia && isVideo && event.duration}
 			<div class="duration">
 				{formatDuration(event.duration)}
 			</div>
@@ -267,6 +289,25 @@
 		width: auto;
 		height: auto;
 		object-fit: contain;
+	}
+
+	.media-placeholder {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #111;
+	}
+
+	.placeholder-content {
+		text-align: center;
+		color: rgba(255, 255, 255, 0.5);
+	}
+
+	.placeholder-icon {
+		font-size: 3rem;
+		margin-bottom: 1rem;
 	}
 
 	.media-indicator {
