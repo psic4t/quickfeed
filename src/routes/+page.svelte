@@ -1,15 +1,36 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { page } from '$app/stores';
 	import { NostrService } from '$lib/nostr';
 	import type { MediaEvent } from '$lib/types';
 	import MediaFeed from '$lib/components/MediaFeed.svelte';
 
 	let nostrService: NostrService;
 	let mediaEvents: MediaEvent[] = [];
+	let filteredEvents: MediaEvent[] = [];
 	let isConnecting = true;
 	let error: string | null = null;
 	let connectionStatus: 'connecting' | 'connected' | 'error' | 'loading' = 'connecting';
 	let isLoadingHistorical = false;
+	let currentTag: string | null = null;
+
+	// Filter events by tag
+	function filterEventsByTag(events: MediaEvent[], tag: string | null): MediaEvent[] {
+		if (!tag) return events;
+		
+		return events.filter(event => {
+			// Check if any tag matches the filter
+			return event.tags.some(tagArray => 
+				tagArray[0] === 't' && tagArray[1] === tag
+			);
+		});
+	}
+
+	// Update filtered events when mediaEvents or tag changes
+	$: filteredEvents = filterEventsByTag(mediaEvents, currentTag);
+
+	// Update current tag when URL changes
+	$: currentTag = $page.url.searchParams.get('tag');
 
 	onMount(async () => {
 		try {
@@ -81,19 +102,29 @@
 				Try Again
 			</button>
 		</div>
-	{:else if mediaEvents.length === 0}
-		<div class="empty-state">
-			<h2>No Media Found</h2>
-			<p>No media events found on the connected relays.</p>
-		</div>
-	{:else}
-		<MediaFeed {mediaEvents} />
-		{#if connectionStatus === 'loading'}
-			<div class="loading-indicator">
-				<div class="spinner small"></div>
-				<p>Loading more...</p>
+		{:else if filteredEvents.length === 0}
+			<div class="empty-state">
+				<h2>No Media Found</h2>
+				{#if currentTag}
+					<p>No media events found with tag "#{currentTag}".</p>
+				{:else}
+					<p>No media events found on the connected relays.</p>
+				{/if}
 			</div>
-		{/if}
+		{:else}
+			{#if currentTag}
+				<div class="filter-info">
+					<span>Filtered by tag: <strong>#{currentTag}</strong></span>
+					<a href="/" class="clear-filter">Clear filter</a>
+				</div>
+			{/if}
+			<MediaFeed mediaEvents={filteredEvents} />
+			{#if connectionStatus === 'loading'}
+				<div class="loading-indicator">
+					<div class="spinner small"></div>
+					<p>Loading more...</p>
+				</div>
+			{/if}
 	{/if}
 </main>
 
@@ -190,5 +221,34 @@
 		width: 20px;
 		height: 20px;
 		border-width: 2px;
+	}
+
+	.filter-info {
+		position: fixed;
+		top: 20px;
+		left: 50%;
+		transform: translateX(-50%);
+		background: rgba(0, 0, 0, 0.9);
+		color: white;
+		padding: 0.75rem 1.5rem;
+		border-radius: 20px;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		backdrop-filter: blur(10px);
+		z-index: 100;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.clear-filter {
+		color: #667eea;
+		text-decoration: none;
+		font-size: 0.9rem;
+		transition: color 0.2s ease;
+	}
+
+	.clear-filter:hover {
+		color: #5a6fd8;
+		text-decoration: underline;
 	}
 </style>

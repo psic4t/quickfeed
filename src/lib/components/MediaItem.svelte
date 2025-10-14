@@ -188,6 +188,48 @@
 		const secs = seconds % 60;
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	}
+
+	function parseDescriptionWithTags(text: string) {
+		// Regex to find hashtags (words starting with #)
+		const hashtagRegex = /#(\w+)/g;
+		const parts = [];
+		let lastIndex = 0;
+		let match;
+
+		while ((match = hashtagRegex.exec(text)) !== null) {
+			// Add text before the hashtag
+			if (match.index > lastIndex) {
+				parts.push({
+					type: 'text',
+					content: text.slice(lastIndex, match.index)
+				});
+			}
+			
+			// Add the hashtag
+			parts.push({
+				type: 'tag',
+				content: match[1] // without the #
+			});
+			
+			lastIndex = match.index + match[0].length;
+		}
+		
+		// Add remaining text
+		if (lastIndex < text.length) {
+			parts.push({
+				type: 'text',
+				content: text.slice(lastIndex)
+			});
+		}
+		
+		return parts;
+	}
+
+	function navigateToTag(tagName: string) {
+		const url = new URL(window.location.href);
+		url.searchParams.set('tag', tagName);
+		window.location.href = url.toString();
+	}
 </script>
 
 <div class="media-item">
@@ -259,7 +301,19 @@
 
 		{#if event.content}
 			<div class="description">
-				<p>{event.content}</p>
+				{#each parseDescriptionWithTags(event.content) as part}
+					{#if part.type === 'tag'}
+						<button 
+							class="hashtag" 
+							on:click={() => navigateToTag(part.content)}
+							title="Filter by #{part.content}"
+						>
+							#{part.content}
+						</button>
+					{:else}
+						<span>{part.content}</span>
+					{/if}
+				{/each}
 			</div>
 		{/if}
 
@@ -394,11 +448,28 @@
 	.description {
 		margin-bottom: 1.5rem;
 		max-width: 600px;
-	}
-
-	.description p {
 		line-height: 1.4;
 		font-size: 0.95rem;
+	}
+
+	.hashtag {
+		background: rgba(102, 126, 234, 0.2);
+		border: 1px solid rgba(102, 126, 234, 0.3);
+		color: #667eea;
+		padding: 2px 6px;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: inherit;
+		font-family: inherit;
+		transition: all 0.2s ease;
+		margin: 0 2px;
+	}
+
+	.hashtag:hover {
+		background: rgba(102, 126, 234, 0.3);
+		border-color: rgba(102, 126, 234, 0.5);
+		color: #7ba7f7;
+		text-decoration: underline;
 	}
 
 	.footer {
