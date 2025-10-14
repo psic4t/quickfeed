@@ -277,6 +277,33 @@
 </script>
 
 <div class="media-item">
+	<!-- Mobile fixed header -->
+	<div class="mobile-fixed-header">
+		<div class="mobile-author">
+			<div class="mobile-author-avatar">
+				{#if profileMetadata?.picture}
+					<img src={profileMetadata.picture} alt="Profile" class="mobile-profile-image" />
+				{:else}
+					{event.pubkey.slice(0, 2).toUpperCase()}
+				{/if}
+			</div>
+			<button 
+				class="mobile-author-name" 
+				on:click={() => navigateToUser(event.pubkey)}
+				title="Filter by this user"
+			>
+				{profileMetadata?.display_name || profileMetadata?.name || `${event.pubkey.slice(0, 6)}...`}
+			</button>
+		</div>
+		<button class="mobile-json-button" on:click={toggleJsonOverlay} title="View JSON">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z"/>
+				<path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+				<path d="M2 12h20"/>
+			</svg>
+		</button>
+	</div>
+
 	<div class="media-container">
 		{#if primaryMedia}
 			{#if isVideo}
@@ -627,9 +654,109 @@
 		transform: scale(1.05);
 	}
 
+	/* Mobile fixed header */
+	.mobile-fixed-header {
+		display: none;
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 60px;
+		background: rgba(0, 0, 0, 0.8);
+		backdrop-filter: blur(10px);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		z-index: 1000;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 1rem;
+	}
+
+	.mobile-author {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.mobile-author-avatar {
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-weight: 600;
+		font-size: 12px;
+		overflow: hidden;
+		flex-shrink: 0;
+	}
+
+	.mobile-profile-image {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.mobile-author-name {
+		font-weight: 500;
+		font-size: 0.9rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 200px;
+		background: none;
+		border: none;
+		color: white;
+		cursor: pointer;
+		padding: 0;
+		text-align: left;
+		font-family: inherit;
+		transition: color 0.2s ease;
+	}
+
+	.mobile-author-name:hover {
+		color: #667eea;
+		text-decoration: underline;
+	}
+
+	.mobile-json-button {
+		background: rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		color: white;
+		padding: 8px;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.mobile-json-button:hover {
+		background: rgba(255, 255, 255, 0.2);
+		border-color: rgba(255, 255, 255, 0.3);
+		transform: scale(1.05);
+	}
+
 	@media (max-width: 768px) {
+		.mobile-fixed-header {
+			display: none; /* Hide the fixed header, keep bottom overlay */
+		}
+
+		.media-item {
+			padding-top: 0; /* Remove padding since no fixed header */
+		}
+
+		.media-container {
+			height: 100vh; /* Full height since no fixed header */
+		}
+
 		.content-overlay {
 			padding: 1rem;
+			padding-top: 0.5rem;
 		}
 
 		.title {
