@@ -9,6 +9,7 @@
 	let isConnecting = true;
 	let error: string | null = null;
 	let connectionStatus: 'connecting' | 'connected' | 'error' | 'loading' = 'connecting';
+	let isLoadingHistorical = false;
 
 	onMount(async () => {
 		try {
@@ -17,11 +18,24 @@
 			await nostrService.connect();
 			connectionStatus = 'connected';
 			
-			// Load historical events
+			// Load historical events asynchronously
 			connectionStatus = 'loading';
-			const historical = await nostrService.getHistoricalMedia(20);
-			mediaEvents = historical;
-			connectionStatus = 'connected';
+			isLoadingHistorical = true;
+			
+			// Start loading historical media in background
+			nostrService.getHistoricalMedia(20)
+				.then(historical => {
+					mediaEvents = historical;
+					connectionStatus = 'connected';
+				})
+				.catch(err => {
+					console.error('Error loading historical media:', err);
+					error = 'Failed to load historical media';
+					connectionStatus = 'error';
+				})
+				.finally(() => {
+					isLoadingHistorical = false;
+				});
 			
 			// Subscribe to new events
 			nostrService.subscribeToMediaFeed(
@@ -52,10 +66,10 @@
 			<div class="spinner"></div>
 			<p>Connecting to Nostr...</p>
 		</div>
-	{:else if connectionStatus === 'loading' && mediaEvents.length === 0}
+		{:else if connectionStatus === 'loading' && mediaEvents.length === 0}
 		<div class="loading">
 			<div class="spinner"></div>
-			<p>Loading media...</p>
+			<p>Loading media from Nostr relays...</p>
 		</div>
 	{:else if error}
 		<div class="error">

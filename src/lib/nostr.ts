@@ -165,18 +165,20 @@ export class NostrService {
     try {
       const kinds = [20, 22]; // Picture and short video events
 
+      // Use querySync with async iterator for better performance
       const events = await this.pool.querySync(this.relays, {
         kinds: kinds,
         limit: limit,
       });
 
-      const mediaEvents: MediaEvent[] = [];
-      for (const event of events) {
+      // Process events asynchronously in parallel
+      const mediaPromises = events.map(async (event) => {
         const mediaEvent = this.parseEvent(event);
-        if (mediaEvent && mediaEvent.media && mediaEvent.media.length > 0) {
-          mediaEvents.push(mediaEvent);
-        }
-      }
+        return mediaEvent && mediaEvent.media && mediaEvent.media.length > 0 ? mediaEvent : null;
+      });
+
+      const mediaResults = await Promise.all(mediaPromises);
+      const mediaEvents = mediaResults.filter((event): event is MediaEvent => event !== null);
 
       return mediaEvents.sort((a, b) => b.created_at - a.created_at);
     } catch (error) {
