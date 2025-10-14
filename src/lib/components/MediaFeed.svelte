@@ -4,6 +4,9 @@
 	import MediaItem from './MediaItem.svelte';
 
 	export let mediaEvents: MediaEvent[] = [];
+	export let onLoadMore: () => void = () => {};
+	export let isLoadingMore = false;
+	export let hasMoreEvents = true;
 
 	let currentIndex = 0;
 	let container: HTMLElement;
@@ -12,6 +15,7 @@
 	let touchEndY = 0;
 	let isDragging = false;
 	let wheelTimeout: number;
+	let loadMoreTriggered = false;
 	
 	// Virtual scrolling - only render items near current index
 	const BUFFER_SIZE = 2; // Render 2 items before and after current
@@ -19,11 +23,23 @@
 	$: visibleEndIndex = Math.min(mediaEvents.length - 1, currentIndex + BUFFER_SIZE);
 	$: visibleEvents = mediaEvents.slice(visibleStartIndex, visibleEndIndex + 1);
 
+	// Check if we should load more events
+	$: if (hasMoreEvents && !isLoadingMore && !loadMoreTriggered && 
+		(currentIndex >= mediaEvents.length - 3)) { // Load when 3 items from end
+		loadMoreTriggered = true;
+		onLoadMore();
+	}
+
 	function scrollToIndex(index: number) {
 		if (isScrolling || index < 0 || index >= mediaEvents.length) return;
 		
 		isScrolling = true;
 		currentIndex = index;
+		
+		// Reset load more trigger when scrolling away from end
+		if (index < mediaEvents.length - 3) {
+			loadMoreTriggered = false;
+		}
 		
 		const item = container?.children[index] as HTMLElement;
 		if (item) {
@@ -138,11 +154,18 @@
 	bind:this={container}
 	style="touch-action: pan-y;"
 >
-	{#each mediaEvents as event, index}
-		<div class="feed-item" class:active={index === currentIndex} style="contain: strict;">
-			<MediaItem {event} isActive={index === currentIndex} />
-		</div>
-	{/each}
+		{#each mediaEvents as event, index}
+			<div class="feed-item" class:active={index === currentIndex} style="contain: strict;">
+				<MediaItem {event} isActive={index === currentIndex} />
+			</div>
+		{/each}
+		
+		{#if isLoadingMore}
+			<div class="loading-more">
+				<div class="spinner"></div>
+				<p>Loading more...</p>
+			</div>
+		{/if}
 </div>
 
 
@@ -166,6 +189,32 @@
 		contain: layout style paint;
 		will-change: transform;
 		transform: translateZ(0);
+	}
+
+	.loading-more {
+		height: 100vh;
+		width: 100vw;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		color: rgba(255, 255, 255, 0.7);
+		scroll-snap-align: start;
+	}
+
+	.loading-more .spinner {
+		width: 40px;
+		height: 40px;
+		border: 3px solid #333;
+		border-top: 3px solid #fff;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		0% { transform: rotate(0deg); }
+		100% { transform: rotate(360deg); }
 	}
 
 

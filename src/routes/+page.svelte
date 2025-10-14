@@ -13,6 +13,9 @@
 	let error: string | null = null;
 	let connectionStatus: 'connecting' | 'connected' | 'error' | 'loading' = 'connecting';
 	let isLoadingHistorical = false;
+	let isLoadingMore = false;
+	let hasMoreEvents = true;
+	let oldestLoadedTimestamp: number | null = null;
 	let currentTag: string | null = null;
 	let seenEventIds: Set<string> = new Set();
 
@@ -34,6 +37,59 @@
 	// Update current tag when URL changes
 	$: currentTag = $page.url.searchParams.get('tag');
 
+	// Load more events function with retry logic
+	async function loadMoreEvents(retryCount = 0) {
+		if (isLoadingMore || !hasMoreEvents || !oldestLoadedTimestamp) return;
+		
+		isLoadingMore = true;
+		
+		try {
+			const olderEvents = await nostrService.getOlderEvents(oldestLoadedTimestamp, 30);
+			
+			if (olderEvents.length === 0) {
+				hasMoreEvents = false;
+			} else {
+				// Filter out events we've already seen
+				const newEvents = olderEvents.filter(event => !seenEventIds.has(event.id));
+				
+				if (newEvents.length > 0) {
+					// Add to seen set
+					newEvents.forEach(event => seenEventIds.add(event.id));
+					
+					// Update oldest timestamp
+					oldestLoadedTimestamp = Math.min(...newEvents.map(e => e.created_at));
+					
+					// Append to existing events (maintaining chronological order)
+					mediaEvents = [...mediaEvents, ...newEvents];
+				} else {
+					// All events were duplicates, try fetching more with older timestamp
+					if (retryCount < 3) {
+						// Move timestamp back further and retry
+						oldestLoadedTimestamp = oldestLoadedTimestamp - 86400; // Go back 1 day
+						setTimeout(() => loadMoreEvents(retryCount + 1), 1000);
+						return;
+					} else {
+						hasMoreEvents = false;
+					}
+				}
+			}
+		} catch (err) {
+			console.error('Error loading more events:', err);
+			
+			// Retry logic with exponential backoff
+			if (retryCount < 3) {
+				const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+				setTimeout(() => loadMoreEvents(retryCount + 1), delay);
+			} else {
+				error = 'Failed to load more events. Please try again later.';
+				// Clear error after 5 seconds
+				setTimeout(() => error = null, 5000);
+			}
+		} finally {
+			isLoadingMore = false;
+		}
+	}
+
 	onMount(async () => {
 		const endTimer = PerformanceMonitor.startTimer('page-initialization');
 		
@@ -54,6 +110,12 @@
 					// Add all historical events to seen set and sort by created_at timestamp (newest first)
 					historical.forEach(event => seenEventIds.add(event.id));
 					mediaEvents = historical.sort((a, b) => b.created_at - a.created_at);
+					
+					// Set oldest timestamp for pagination
+					if (mediaEvents.length > 0) {
+						oldestLoadedTimestamp = Math.min(...mediaEvents.map(e => e.created_at));
+					}
+					
 					connectionStatus = 'connected';
 				})
 				.catch(err => {
@@ -142,13 +204,12 @@
 					<a href="/" class="clear-filter">Clear filter</a>
 				</div>
 			{/if}
-			<MediaFeed mediaEvents={filteredEvents} />
-			{#if connectionStatus === 'loading'}
-				<div class="loading-indicator">
-					<div class="spinner small"></div>
-					<p>Loading more...</p>
-				</div>
-			{/if}
+			<MediaFeed 
+				mediaEvents={filteredEvents} 
+				onLoadMore={loadMoreEvents}
+				{isLoadingMore}
+				{hasMoreEvents}
+			/>
 	{/if}
 </main>
 
@@ -225,27 +286,7 @@
 		color: rgba(255, 255, 255, 0.7);
 	}
 
-	.loading-indicator {
-		position: fixed;
-		bottom: 20px;
-		left: 50%;
-		transform: translateX(-50%);
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		background: rgba(0, 0, 0, 0.8);
-		padding: 0.75rem 1.5rem;
-		border-radius: 20px;
-		color: white;
-		font-size: 0.9rem;
-		backdrop-filter: blur(10px);
-	}
 
-	.spinner.small {
-		width: 20px;
-		height: 20px;
-		border-width: 2px;
-	}
 
 	.filter-info {
 		position: fixed;

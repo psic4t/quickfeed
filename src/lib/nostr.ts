@@ -205,6 +205,41 @@ export class NostrService {
     }
   }
 
+  async getOlderEvents(until: number, limit: number = 30): Promise<MediaEvent[]> {
+    try {
+      const kinds = [20, 22]; // Picture and short video events
+
+      // Fetch more events to account for deduplication and filtering
+      const fetchLimit = Math.ceil(limit * 1.5);
+
+      const events = await this.pool.querySync(this.relays, {
+        kinds: kinds,
+        until: until, // Get events older than this timestamp
+        limit: fetchLimit,
+      });
+
+      // Process events asynchronously in parallel first
+      const mediaPromises = events.map(async (event) => {
+        const mediaEvent = this.parseEvent(event);
+        return mediaEvent && mediaEvent.media && mediaEvent.media.length > 0 ? mediaEvent : null;
+      });
+
+      const mediaResults = await Promise.all(mediaPromises);
+      const mediaEvents = mediaResults.filter((event): event is MediaEvent => event !== null);
+
+      // Deduplicate by ID
+      const uniqueMediaEvents = Array.from(
+        new Map(mediaEvents.map((event) => [event.id, event])).values()
+      );
+
+      // Sort by created_at (newest first) and limit to requested number
+      return uniqueMediaEvents.sort((a, b) => b.created_at - a.created_at).slice(0, limit);
+    } catch (error) {
+      console.error('Error fetching older events:', error);
+      return [];
+    }
+  }
+
   async getProfileMetadata(pubkey: string): Promise<ProfileMetadata | null> {
     // Check cache first
     if (this.profileCache.has(pubkey)) {
