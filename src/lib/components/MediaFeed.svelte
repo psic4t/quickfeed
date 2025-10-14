@@ -120,23 +120,7 @@
 	{/each}
 </div>
 
-{#if mediaEvents.length > 0}
-	<div class="navigation">
-		<div class="nav-indicators">
-		{#each mediaEvents as _, index}
-			<button 
-				class="indicator" 
-				class:active={index === currentIndex}
-				on:click={() => scrollToIndex(index)}
-				aria-label={`Go to item ${index + 1}`}
-			></button>
-		{/each}
-		</div>
-		<div class="nav-info">
-			{currentIndex + 1} / {mediaEvents.length}
-		</div>
-	</div>
-{/if}
+
 
 <style>
 	.feed-container {
@@ -154,54 +138,5 @@
 		position: relative;
 	}
 
-	.navigation {
-		position: fixed;
-		right: 20px;
-		top: 50%;
-		transform: translateY(-50%);
-		z-index: 100;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-	}
 
-	.nav-indicators {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.indicator {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.3);
-		cursor: pointer;
-		transition: all 0.2s ease;
-		border: none;
-		padding: 0;
-	}
-
-	.indicator.active {
-		background: #fff;
-		transform: scale(1.2);
-	}
-
-	.nav-info {
-		color: rgba(255, 255, 255, 0.7);
-		font-size: 12px;
-		margin-top: 0.5rem;
-	}
-
-	@media (max-width: 768px) {
-		.navigation {
-			right: 10px;
-		}
-		
-		.indicator {
-			width: 6px;
-			height: 6px;
-		}
-	}
 </style>
