@@ -16,9 +16,18 @@
 	// Convert pubkey to npub format
 	$: npub = nip19.npubEncode(event.pubkey);
 
-	// Load profile metadata when component becomes active (with debouncing)
+	// Track the pubkey of the last loaded profile
+	let lastLoadedPubkey: string | null = null;
+
+	// Reset profile metadata when event changes to a different pubkey
+	$: if (lastLoadedPubkey && lastLoadedPubkey !== event.pubkey) {
+		profileMetadata = null;
+		lastLoadedPubkey = null;
+	}
+
+	// Load profile metadata when component becomes active or event changes (with debouncing)
 	let profileLoadTimeout: number;
-	$: if (isActive && !profileMetadata) {
+	$: if (isActive && (!profileMetadata || lastLoadedPubkey !== event.pubkey)) {
 		if (profileLoadTimeout) clearTimeout(profileLoadTimeout);
 		profileLoadTimeout = setTimeout(loadProfileMetadata, 100);
 	}
@@ -30,6 +39,7 @@
 			const nostrService = new NostrService();
 			await nostrService.connect();
 			profileMetadata = await nostrService.getProfileMetadata(event.pubkey);
+			lastLoadedPubkey = event.pubkey; // Track which pubkey we loaded
 			nostrService.close();
 		} catch (error) {
 			console.error('Error loading profile metadata:', error);
