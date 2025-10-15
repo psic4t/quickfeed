@@ -310,7 +310,10 @@
 		<div class="json-content" role="document">
 			<div class="json-header">
 				<h3 id="json-title">Event JSON</h3>
-				<button class="json-close" onclick={toggleJsonOverlay} aria-label="Close JSON view">×</button>
+				<button class="json-close" onclick={(e) => {
+					e.stopPropagation();
+					toggleJsonOverlay();
+				}} aria-label="Close JSON view">×</button>
 			</div>
 			<pre class="json-text">{getEventJson()}</pre>
 		</div>
