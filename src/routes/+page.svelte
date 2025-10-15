@@ -7,24 +7,23 @@
 	import { PerformanceMonitor } from '$lib/performance';
 
 	let nostrService: NostrService;
-	let mediaEvents: MediaEvent[] = [];
-	let filteredEvents: MediaEvent[] = [];
-	let isConnecting = true;
-	let error: string | null = null;
-	let connectionStatus: 'connecting' | 'connected' | 'error' | 'loading' = 'connecting';
-	let isLoadingMore = false;
-	let hasMoreEvents = true;
-	let oldestLoadedTimestamp: number | null = null;
-	let seenEventIds: Set<string> = new Set();
+	let mediaEvents = $state<MediaEvent[]>([]);
+	let isConnecting = $state(true);
+	let error = $state<string | null>(null);
+	let connectionStatus = $state<'connecting' | 'connected' | 'error' | 'loading'>('connecting');
+	let isLoadingMore = $state(false);
+	let hasMoreEvents = $state(true);
+	let oldestLoadedTimestamp = $state<number | null>(null);
+	let seenEventIds = $state(new Set<string>());
 
 	// Get current filter from URL
-	$: currentFilter = {
+	const currentFilter = $derived({
 		tag: $page.url.searchParams.get('tag'),
 		user: $page.url.searchParams.get('user')
-	};
+	});
 
 	// Filter events based on current filter
-	$: filteredEvents = mediaEvents.filter(event => {
+	const filteredEvents = $derived(mediaEvents.filter(event => {
 		if (currentFilter.user) {
 			return event.pubkey === currentFilter.user;
 		}
@@ -34,7 +33,7 @@
 			);
 		}
 		return true;
-	});
+	}));
 
 	// Load more events function
 	async function loadMoreEvents() {

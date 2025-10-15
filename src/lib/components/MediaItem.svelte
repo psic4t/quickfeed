@@ -4,32 +4,42 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { nip19 } from 'nostr-tools';
 
-	export let event: MediaEvent;
-	export let isActive = false;
+	interface Props {
+		event: MediaEvent;
+		isActive: boolean;
+	}
 
-	let showJsonOverlay = false;
-	let profileMetadata: ProfileMetadata | null = null;
-	let npub: string;
+	let {
+		event,
+		isActive = false
+	}: Props = $props();
+
+	let showJsonOverlay = $state(false);
+	let profileMetadata: ProfileMetadata | null = $state(null);
 	let mediaElement: HTMLImageElement | HTMLVideoElement;
 
 	// Convert pubkey to npub format
-	$: npub = nip19.npubEncode(event.pubkey);
+	const npub = $derived(nip19.npubEncode(event.pubkey));
 
 	// Track the pubkey of the last loaded profile
-	let lastLoadedPubkey: string | null = null;
+	let lastLoadedPubkey: string | null = $state(null);
 
 	// Reset profile metadata when event changes to a different pubkey
-	$: if (lastLoadedPubkey && lastLoadedPubkey !== event.pubkey) {
-		profileMetadata = null;
-		lastLoadedPubkey = null;
-	}
+	$effect(() => {
+		if (lastLoadedPubkey && lastLoadedPubkey !== event.pubkey) {
+			profileMetadata = null;
+			lastLoadedPubkey = null;
+		}
+	});
 
 	// Load profile metadata when component becomes active or event changes (with debouncing)
 	let profileLoadTimeout: number;
-	$: if (isActive && (!profileMetadata || lastLoadedPubkey !== event.pubkey)) {
-		if (profileLoadTimeout) clearTimeout(profileLoadTimeout);
-		profileLoadTimeout = setTimeout(loadProfileMetadata, 100);
-	}
+	$effect(() => {
+		if (isActive && (!profileMetadata || lastLoadedPubkey !== event.pubkey)) {
+			if (profileLoadTimeout) clearTimeout(profileLoadTimeout);
+			profileLoadTimeout = setTimeout(loadProfileMetadata, 100);
+		}
+	});
 
 	async function loadProfileMetadata() {
 		try {
@@ -52,9 +62,9 @@
 	});
 
 	// Media properties
-	$: isVideo = event.kind === 22;
-	$: primaryMedia = event.media?.[0];
-	$: hasMultipleMedia = (event.media?.length || 0) > 1;
+	const isVideo = $derived(event.kind === 22);
+	const primaryMedia = $derived(event.media?.[0]);
+	const hasMultipleMedia = $derived((event.media?.length || 0) > 1);
 
 	function toggleJsonOverlay() {
 		showJsonOverlay = !showJsonOverlay;

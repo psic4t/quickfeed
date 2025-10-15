@@ -3,25 +3,36 @@
 	import type { MediaEvent } from '$lib/types';
 	import MediaItem from './MediaItem.svelte';
 
-	export let mediaEvents: MediaEvent[] = [];
-	export let onLoadMore: () => void = () => {};
-	export let isLoadingMore = false;
-	export let hasMoreEvents = true;
+	interface Props {
+		mediaEvents: MediaEvent[];
+		onLoadMore: () => void;
+		isLoadingMore: boolean;
+		hasMoreEvents: boolean;
+	}
 
-	let currentIndex = 0;
+	let {
+		mediaEvents = [],
+		onLoadMore = () => {},
+		isLoadingMore = false,
+		hasMoreEvents = true
+	}: Props = $props();
+
+	let currentIndex = $state(0);
 	let container: HTMLElement;
-	let isScrolling = false;
-	let touchStartY = 0;
-	let touchEndY = 0;
-	let isDragging = false;
-	let loadMoreTriggered = false;
+	let isScrolling = $state(false);
+	let touchStartY = $state(0);
+	let touchEndY = $state(0);
+	let isDragging = $state(false);
+	let loadMoreTriggered = $state(false);
 
 	// Check if we should load more events
-	$: if (hasMoreEvents && !isLoadingMore && !loadMoreTriggered && 
-		(currentIndex >= mediaEvents.length - 3)) { // Load when 3 items from end
-		loadMoreTriggered = true;
-		onLoadMore();
-	}
+	$effect(() => {
+		if (hasMoreEvents && !isLoadingMore && !loadMoreTriggered && 
+			(currentIndex >= mediaEvents.length - 3)) { // Load when 3 items from end
+			loadMoreTriggered = true;
+			onLoadMore();
+		}
+	});
 
 	function scrollToIndex(index: number) {
 		if (isScrolling || index < 0 || index >= mediaEvents.length) return;
