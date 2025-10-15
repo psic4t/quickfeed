@@ -16,7 +16,7 @@
 
 	let showJsonOverlay = $state(false);
 	let profileMetadata: ProfileMetadata | null = $state(null);
-	let mediaElement: HTMLImageElement | HTMLVideoElement;
+	let mediaElement = $state<HTMLImageElement | HTMLVideoElement>();
 
 	// Convert pubkey to npub format
 	const npub = $derived(nip19.npubEncode(event.pubkey));
