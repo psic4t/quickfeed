@@ -156,13 +156,13 @@
 			</div>
 			<button 
 				class="mobile-author-name" 
-				on:click={() => navigateToUser(event.pubkey)}
+				onclick={() => navigateToUser(event.pubkey)}
 				title="Filter by this user"
 			>
 				{profileMetadata?.display_name || profileMetadata?.name || `${event.pubkey.slice(0, 6)}...`}
 			</button>
 		</div>
-		<button class="mobile-json-button" on:click={toggleJsonOverlay} title="View JSON">
+		<button class="mobile-json-button" onclick={toggleJsonOverlay} title="View JSON">
 			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 				<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z"/>
 				<path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
@@ -183,8 +183,8 @@
 					loop
 					playsinline
 					preload="metadata"
-					on:error={handleVideoError}
-					on:canplay={() => {
+					onerror={handleVideoError}
+					oncanplay={() => {
 						if (isActive && mediaElement && mediaElement instanceof HTMLVideoElement) {
 							mediaElement.play().catch((e: any) => console.log('Autoplay prevented:', e));
 						}
@@ -204,7 +204,7 @@
 					alt={primaryMedia.alt || event.content}
 					loading="lazy"
 					decoding="async"
-					on:error={(e) => {
+					onerror={(e) => {
 						const img = e.target as HTMLImageElement;
 						if (primaryMedia.fallback && primaryMedia.fallback.length > 0) {
 							img.src = primaryMedia.fallback[0];
@@ -254,7 +254,7 @@
 					{#if part.type === 'tag'}
 						<button 
 							class="hashtag" 
-							on:click={() => navigateToTag(part.content)}
+							onclick={() => navigateToTag(part.content)}
 							title="Filter by #{part.content}"
 						>
 							#{part.content}
@@ -278,7 +278,7 @@
 				<div class="author-info">
 					<button 
 						class="author-name" 
-						on:click={() => navigateToUser(event.pubkey)}
+						onclick={() => navigateToUser(event.pubkey)}
 						title="Filter by this user"
 					>
 						{profileMetadata?.display_name || profileMetadata?.name || `${event.pubkey.slice(0, 8)}...${event.pubkey.slice(-8)}`}
@@ -286,7 +286,7 @@
 					<div class="author-id">{npub}</div>
 				</div>
 			</div>
-			<button class="json-button" on:click={toggleJsonOverlay} title="View JSON">
+			<button class="json-button" onclick={toggleJsonOverlay} title="View JSON">
 				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 					<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z"/>
 					<path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
@@ -304,13 +304,13 @@
 		aria-modal="true"
 		aria-labelledby="json-title"
 		tabindex="-1"
-		on:click={toggleJsonOverlay}
-		on:keydown={(e) => e.key === 'Escape' && toggleJsonOverlay()}
+		onclick={toggleJsonOverlay}
+		onkeydown={(e) => e.key === 'Escape' && toggleJsonOverlay()}
 	>
 		<div class="json-content" role="document">
 			<div class="json-header">
 				<h3 id="json-title">Event JSON</h3>
-				<button class="json-close" on:click={toggleJsonOverlay} aria-label="Close JSON view">×</button>
+				<button class="json-close" onclick={toggleJsonOverlay} aria-label="Close JSON view">×</button>
 			</div>
 			<pre class="json-text">{getEventJson()}</pre>
 		</div>

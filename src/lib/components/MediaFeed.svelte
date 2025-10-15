@@ -149,10 +149,10 @@
 	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 {#if currentIndex > 0}
-	<button class="back-to-latest" on:click={scrollToLatest} title="Back to latest">
+	<button class="back-to-latest" onclick={scrollToLatest} title="Back to latest">
 		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 			<path d="M18 15l-6-6-6 6"/>
 		</svg>
