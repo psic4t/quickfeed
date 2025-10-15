@@ -10,7 +10,6 @@
 	let showJsonOverlay = false;
 	let profileMetadata: ProfileMetadata | null = null;
 	let npub: string;
-	let intersectionObserver: IntersectionObserver;
 	let mediaElement: HTMLImageElement | HTMLVideoElement;
 
 	// Convert pubkey to npub format
@@ -46,31 +45,7 @@
 		}
 	}
 
-	// Intersection Observer for performance monitoring
-	onMount(() => {
-		if ('IntersectionObserver' in window) {
-			intersectionObserver = new IntersectionObserver(
-				(entries) => {
-					entries.forEach(entry => {
-						if (entry.isIntersecting) {
-							// Media is now visible, could trigger analytics here
-						}
-					});
-				},
-				{ threshold: 0.5 }
-			);
-
-			// Observe the media element when it's available
-			if (mediaElement) {
-				intersectionObserver.observe(mediaElement);
-			}
-		}
-	});
-
 	onDestroy(() => {
-		if (intersectionObserver) {
-			intersectionObserver.disconnect();
-		}
 		if (profileLoadTimeout) {
 			clearTimeout(profileLoadTimeout);
 		}
@@ -83,129 +58,11 @@
 
 	function toggleJsonOverlay() {
 		showJsonOverlay = !showJsonOverlay;
-		
-		if (showJsonOverlay) {
-			createOverlay();
-		} else {
-			removeOverlay();
-		}
 	}
 
 	function getEventJson(): string {
 		return JSON.stringify(event, null, 2);
 	}
-
-	function createOverlay() {
-		// Remove any existing overlay
-		removeOverlay();
-		
-		const overlay = document.createElement('div');
-		overlay.className = 'json-overlay-portal';
-		overlay.style.cssText = `
-			position: fixed;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			background: rgba(0, 0, 0, 0.8);
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			z-index: 1000;
-			backdrop-filter: blur(4px);
-		`;
-		
-		const content = document.createElement('div');
-		content.className = 'json-content-portal';
-		content.style.cssText = `
-			background: #1a1a1a;
-			border: 1px solid #333;
-			border-radius: 12px;
-			max-width: 90vw;
-			max-height: 90vh;
-			width: 600px;
-			overflow: hidden;
-			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-		`;
-		
-		const header = document.createElement('div');
-		header.className = 'json-header-portal';
-		header.style.cssText = `
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			padding: 1rem 1.5rem;
-			border-bottom: 1px solid #333;
-			background: #222;
-		`;
-		
-		const title = document.createElement('h3');
-		title.textContent = 'Event JSON';
-		title.style.cssText = `
-			margin: 0;
-			color: white;
-			font-size: 1.1rem;
-		`;
-		
-		const closeBtn = document.createElement('button');
-		closeBtn.textContent = '×';
-		closeBtn.style.cssText = `
-			background: none;
-			border: none;
-			color: #999;
-			font-size: 1.5rem;
-			cursor: pointer;
-			padding: 0;
-			width: 30px;
-			height: 30px;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			border-radius: 4px;
-			transition: all 0.2s ease;
-		`;
-		
-		const pre = document.createElement('pre');
-		pre.className = 'json-text-portal';
-		pre.textContent = getEventJson();
-		pre.style.cssText = `
-			padding: 1.5rem;
-			margin: 0;
-			color: #e0e0e0;
-			font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-			font-size: 0.85rem;
-			line-height: 1.4;
-			overflow: auto;
-			max-height: calc(90vh - 80px);
-			white-space: pre-wrap;
-			word-wrap: break-word;
-		`;
-		
-		header.appendChild(title);
-		header.appendChild(closeBtn);
-		content.appendChild(header);
-		content.appendChild(pre);
-		overlay.appendChild(content);
-		
-		// Event listeners
-		overlay.addEventListener('click', toggleJsonOverlay);
-		closeBtn.addEventListener('click', toggleJsonOverlay);
-		content.addEventListener('click', (e) => e.stopPropagation());
-		
-		document.body.appendChild(overlay);
-	}
-
-	function removeOverlay() {
-		const existing = document.querySelector('.json-overlay-portal');
-		if (existing) {
-			existing.remove();
-		}
-	}
-
-	// Cleanup overlay when component is destroyed
-	onDestroy(() => {
-		removeOverlay();
-	});
 
 	function formatTimeAgo(timestamp: number): string {
 		const now = Math.floor(Date.now() / 1000);
@@ -429,6 +286,26 @@
 		</div>
 	</div>
 </div>
+
+{#if showJsonOverlay}
+	<div 
+		class="json-overlay" 
+		role="dialog" 
+		aria-modal="true"
+		aria-labelledby="json-title"
+		tabindex="-1"
+		on:click={toggleJsonOverlay}
+		on:keydown={(e) => e.key === 'Escape' && toggleJsonOverlay()}
+	>
+		<div class="json-content" role="document">
+			<div class="json-header">
+				<h3 id="json-title">Event JSON</h3>
+				<button class="json-close" on:click={toggleJsonOverlay} aria-label="Close JSON view">×</button>
+			</div>
+			<pre class="json-text">{getEventJson()}</pre>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.media-item {
@@ -741,6 +618,81 @@
 		transform: scale(1.05);
 	}
 
+	/* JSON Modal */
+	.json-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.8);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+		backdrop-filter: blur(4px);
+	}
+
+	.json-content {
+		background: #1a1a1a;
+		border: 1px solid #333;
+		border-radius: 12px;
+		max-width: 90vw;
+		max-height: 90vh;
+		width: 600px;
+		overflow: hidden;
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+	}
+
+	.json-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1rem 1.5rem;
+		border-bottom: 1px solid #333;
+		background: #222;
+	}
+
+	.json-header h3 {
+		margin: 0;
+		color: white;
+		font-size: 1.1rem;
+	}
+
+	.json-close {
+		background: none;
+		border: none;
+		color: #999;
+		font-size: 1.5rem;
+		cursor: pointer;
+		padding: 0;
+		width: 30px;
+		height: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 4px;
+		transition: all 0.2s ease;
+	}
+
+	.json-close:hover {
+		color: white;
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.json-text {
+		padding: 1.5rem;
+		margin: 0;
+		color: #e0e0e0;
+		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+		font-size: 0.85rem;
+		line-height: 1.4;
+		overflow: auto;
+		max-height: calc(90vh - 80px);
+		white-space: pre-wrap;
+		word-wrap: break-word;
+	}
+
 	@media (max-width: 768px) {
 		.mobile-fixed-header {
 			display: none; /* Hide the fixed header, keep bottom overlay */
@@ -787,6 +739,16 @@
 
 		.author-name {
 			max-width: 150px;
+		}
+
+		.json-content {
+			width: 95vw;
+			max-height: 95vh;
+		}
+
+		.json-text {
+			font-size: 0.8rem;
+			padding: 1rem;
 		}
 	}
 </style>

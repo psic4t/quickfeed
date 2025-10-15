@@ -12,47 +12,32 @@
 	let isConnecting = true;
 	let error: string | null = null;
 	let connectionStatus: 'connecting' | 'connected' | 'error' | 'loading' = 'connecting';
-	let isLoadingHistorical = false;
 	let isLoadingMore = false;
 	let hasMoreEvents = true;
 	let oldestLoadedTimestamp: number | null = null;
-	let currentTag: string | null = null;
-	let currentUser: string | null = null;
 	let seenEventIds: Set<string> = new Set();
 
-	// Filter events by tag
-	function filterEventsByTag(events: MediaEvent[], tag: string | null): MediaEvent[] {
-		if (!tag) return events;
-		
-		return events.filter(event => {
-			// Check if any tag matches the filter
+	// Get current filter from URL
+	$: currentFilter = {
+		tag: $page.url.searchParams.get('tag'),
+		user: $page.url.searchParams.get('user')
+	};
+
+	// Filter events based on current filter
+	$: filteredEvents = mediaEvents.filter(event => {
+		if (currentFilter.user) {
+			return event.pubkey === currentFilter.user;
+		}
+		if (currentFilter.tag) {
 			return event.tags.some(tagArray => 
-				tagArray[0] === 't' && tagArray[1] === tag
+				tagArray[0] === 't' && tagArray[1] === currentFilter.tag
 			);
-		});
-	}
+		}
+		return true;
+	});
 
-	// Filter events by user
-	function filterEventsByUser(events: MediaEvent[], user: string | null): MediaEvent[] {
-		if (!user) return events;
-		
-		return events.filter(event => {
-			// Check if pubkey matches the user filter
-			return event.pubkey === user;
-		});
-	}
-
-	// Update filtered events when mediaEvents, tag, or user changes
-	$: filteredEvents = currentUser 
-		? filterEventsByUser(mediaEvents, currentUser)
-		: filterEventsByTag(mediaEvents, currentTag);
-
-	// Update current tag and user when URL changes
-	$: currentTag = $page.url.searchParams.get('tag');
-	$: currentUser = $page.url.searchParams.get('user');
-
-	// Load more events function with retry logic
-	async function loadMoreEvents(retryCount = 0) {
+	// Load more events function
+	async function loadMoreEvents() {
 		if (isLoadingMore || !hasMoreEvents || !oldestLoadedTimestamp) return;
 		
 		isLoadingMore = true;
@@ -67,38 +52,20 @@
 				const newEvents = olderEvents.filter(event => !seenEventIds.has(event.id));
 				
 				if (newEvents.length > 0) {
-					// Add to seen set
 					newEvents.forEach(event => seenEventIds.add(event.id));
-					
-					// Update oldest timestamp
 					oldestLoadedTimestamp = Math.min(...newEvents.map(e => e.created_at));
-					
-					// Append to existing events (maintaining chronological order)
 					mediaEvents = [...mediaEvents, ...newEvents];
 				} else {
-					// All events were duplicates, try fetching more with older timestamp
-					if (retryCount < 3) {
-						// Move timestamp back further and retry
-						oldestLoadedTimestamp = oldestLoadedTimestamp - 86400; // Go back 1 day
-						setTimeout(() => loadMoreEvents(retryCount + 1), 1000);
-						return;
-					} else {
-						hasMoreEvents = false;
-					}
+					// All events were duplicates, try with older timestamp
+					oldestLoadedTimestamp -= 86400; // Go back 1 day
+					setTimeout(loadMoreEvents, 1000);
+					return;
 				}
 			}
 		} catch (err) {
 			console.error('Error loading more events:', err);
-			
-			// Retry logic with exponential backoff
-			if (retryCount < 3) {
-				const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-				setTimeout(() => loadMoreEvents(retryCount + 1), delay);
-			} else {
-				error = 'Failed to load more events. Please try again later.';
-				// Clear error after 5 seconds
-				setTimeout(() => error = null, 5000);
-			}
+			error = 'Failed to load more events. Please try again later.';
+			setTimeout(() => error = null, 5000);
 		} finally {
 			isLoadingMore = false;
 		}
@@ -205,23 +172,24 @@
 		{:else if filteredEvents.length === 0}
 			<div class="empty-state">
 				<h2>No Media Found</h2>
-				{#if currentTag}
-					<p>No media events found with tag "#{currentTag}".</p>
-				{:else if currentUser}
+				{#if currentFilter.tag}
+					<p>No media events found with tag "#{currentFilter.tag}".</p>
+				{:else if currentFilter.user}
 					<p>No media events found for this user.</p>
 				{:else}
 					<p>No media events found on the connected relays.</p>
 				{/if}
 			</div>
 		{:else}
-			{#if currentTag}
+			{#if currentFilter.tag || currentFilter.user}
 				<div class="filter-info">
-					<span>Filtered by tag: <strong>#{currentTag}</strong></span>
-					<a href="/" class="clear-filter">Clear filter</a>
-				</div>
-			{:else if currentUser}
-				<div class="filter-info">
-					<span>Filtered by user</span>
+					<span>
+						{#if currentFilter.tag}
+							Filtered by tag: <strong>#{currentFilter.tag}</strong>
+						{:else}
+							Filtered by user
+						{/if}
+					</span>
 					<a href="/" class="clear-filter">Clear filter</a>
 				</div>
 			{/if}

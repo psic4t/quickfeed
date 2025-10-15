@@ -1,6 +1,6 @@
 import { SimplePool, type Event } from 'nostr-tools';
 import { getConfig } from './config';
-import type { MediaEvent, MediaItem, ImetaData } from './types';
+import type { MediaEvent, MediaItem } from './types';
 
 export interface ProfileMetadata {
   name?: string;
@@ -22,75 +22,51 @@ export class NostrService {
   }
 
   async connect(): Promise<void> {
-    const connectionPromises = this.relays.map(async (relay) => {
-      try {
-        await this.pool.ensureRelay(relay);
-        console.log(`Connected to relay: ${relay}`);
-        return { relay, success: true };
-      } catch (error) {
-        console.error(`Failed to connect to relay ${relay}:`, error);
-        return { relay, success: false, error };
-      }
-    });
-
-    const results = await Promise.allSettled(connectionPromises);
-    const failedConnections = results.filter(
-      (result): result is PromiseFulfilledResult<{ relay: string; success: false; error: any }> =>
-        result.status === 'fulfilled' && !result.value.success
+    const results = await Promise.allSettled(
+      this.relays.map((relay) => this.pool.ensureRelay(relay))
     );
 
-    if (failedConnections.length === this.relays.length) {
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed === this.relays.length) {
       throw new Error('Failed to connect to any relay');
     }
 
-    if (failedConnections.length > 0) {
-      console.warn(`Failed to connect to ${failedConnections.length} relays`);
+    if (failed > 0) {
+      console.warn(`Failed to connect to ${failed} relays`);
     }
   }
 
   parseImetaTag(imetaTag: string[]): MediaItem | null {
-    const data: ImetaData = {};
+    const data: Partial<MediaItem> = {};
+    const parsers = {
+      'url ': (v: string) => (data.url = v),
+      'm ': (v: string) => (data.mimeType = v),
+      'dim ': (v: string) => (data.dimensions = v),
+      'blurhash ': (v: string) => (data.blurhash = v),
+      'alt ': (v: string) => (data.alt = v),
+      'x ': (v: string) => (data.x = v),
+      'fallback ': (v: string) => {
+        if (!data.fallback) data.fallback = [];
+        data.fallback.push(v);
+      },
+      'image ': (v: string) => {
+        if (!data.image) data.image = [];
+        data.image.push(v);
+      },
+      'service ': (v: string) => (data.service = v),
+    };
 
     for (let i = 1; i < imetaTag.length; i++) {
       const part = imetaTag[i];
-      if (part.startsWith('url ')) {
-        data.url = part.substring(4);
-      } else if (part.startsWith('m ')) {
-        data.mimeType = part.substring(2);
-      } else if (part.startsWith('dim ')) {
-        data.dimensions = part.substring(4);
-      } else if (part.startsWith('blurhash ')) {
-        data.blurhash = part.substring(9);
-      } else if (part.startsWith('alt ')) {
-        data.alt = part.substring(4);
-      } else if (part.startsWith('x ')) {
-        data.x = part.substring(2);
-      } else if (part.startsWith('fallback ')) {
-        if (!data.fallback) data.fallback = [];
-        data.fallback.push(part.substring(9));
-      } else if (part.startsWith('image ')) {
-        if (!data.image) data.image = [];
-        data.image.push(part.substring(6));
-      } else if (part.startsWith('service ')) {
-        data.service = part.substring(8);
+      for (const [prefix, parser] of Object.entries(parsers)) {
+        if (part.startsWith(prefix)) {
+          parser(part.substring(prefix.length));
+          break;
+        }
       }
     }
 
-    if (!data.url || !data.mimeType) {
-      return null;
-    }
-
-    return {
-      url: data.url,
-      mimeType: data.mimeType,
-      dimensions: data.dimensions,
-      blurhash: data.blurhash,
-      alt: data.alt,
-      x: data.x,
-      fallback: data.fallback,
-      image: data.image,
-      service: data.service,
-    };
+    return data.url && data.mimeType ? (data as MediaItem) : null;
   }
 
   parseEvent(event: Event): MediaEvent | null {
@@ -170,74 +146,34 @@ export class NostrService {
     return () => sub.close();
   }
 
-  async getHistoricalMedia(limit: number = 50): Promise<MediaEvent[]> {
+  private async fetchMediaEvents(
+    filter: Record<string, unknown>,
+    limit: number
+  ): Promise<MediaEvent[]> {
     try {
-      const kinds = [20, 22]; // Picture and short video events
+      const fetchLimit = Math.ceil(limit * 1.5);
+      const events = await this.pool.querySync(this.relays, { ...filter, limit: fetchLimit });
 
-      // Fetch more events to account for deduplication and filtering
-      const fetchLimit = Math.ceil(limit * 1.5); // Fetch 50% more to ensure we get enough unique events
+      const mediaEvents = events
+        .map((event) => this.parseEvent(event))
+        .filter((event): event is MediaEvent => event !== null && Boolean(event.media?.length));
 
-      // Use querySync with async iterator for better performance
-      const events = await this.pool.querySync(this.relays, {
-        kinds: kinds,
-        limit: fetchLimit,
-      });
+      // Deduplicate by ID
+      const uniqueEvents = Array.from(new Map(mediaEvents.map((e) => [e.id, e])).values());
 
-      // Process events asynchronously in parallel first
-      const mediaPromises = events.map(async (event) => {
-        const mediaEvent = this.parseEvent(event);
-        return mediaEvent && mediaEvent.media && mediaEvent.media.length > 0 ? mediaEvent : null;
-      });
-
-      const mediaResults = await Promise.all(mediaPromises);
-      const mediaEvents = mediaResults.filter((event): event is MediaEvent => event !== null);
-
-      // Now deduplicate by ID after filtering for valid media events
-      const uniqueMediaEvents = Array.from(
-        new Map(mediaEvents.map((event) => [event.id, event])).values()
-      );
-
-      // Sort and limit to requested number
-      return uniqueMediaEvents.sort((a, b) => b.created_at - a.created_at).slice(0, limit);
+      return uniqueEvents.sort((a, b) => b.created_at - a.created_at).slice(0, limit);
     } catch (error) {
-      console.error('Error fetching historical media:', error);
+      console.error('Error fetching media events:', error);
       return [];
     }
   }
 
+  async getHistoricalMedia(limit: number = 50): Promise<MediaEvent[]> {
+    return this.fetchMediaEvents({ kinds: [20, 22] }, limit);
+  }
+
   async getOlderEvents(until: number, limit: number = 30): Promise<MediaEvent[]> {
-    try {
-      const kinds = [20, 22]; // Picture and short video events
-
-      // Fetch more events to account for deduplication and filtering
-      const fetchLimit = Math.ceil(limit * 1.5);
-
-      const events = await this.pool.querySync(this.relays, {
-        kinds: kinds,
-        until: until, // Get events older than this timestamp
-        limit: fetchLimit,
-      });
-
-      // Process events asynchronously in parallel first
-      const mediaPromises = events.map(async (event) => {
-        const mediaEvent = this.parseEvent(event);
-        return mediaEvent && mediaEvent.media && mediaEvent.media.length > 0 ? mediaEvent : null;
-      });
-
-      const mediaResults = await Promise.all(mediaPromises);
-      const mediaEvents = mediaResults.filter((event): event is MediaEvent => event !== null);
-
-      // Deduplicate by ID
-      const uniqueMediaEvents = Array.from(
-        new Map(mediaEvents.map((event) => [event.id, event])).values()
-      );
-
-      // Sort by created_at (newest first) and limit to requested number
-      return uniqueMediaEvents.sort((a, b) => b.created_at - a.created_at).slice(0, limit);
-    } catch (error) {
-      console.error('Error fetching older events:', error);
-      return [];
-    }
+    return this.fetchMediaEvents({ kinds: [20, 22], until }, limit);
   }
 
   async getProfileMetadata(pubkey: string): Promise<ProfileMetadata | null> {

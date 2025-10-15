@@ -22,15 +22,3 @@ export interface MediaItem {
   image?: string[];
   service?: string;
 }
-
-export interface ImetaData {
-  url?: string;
-  mimeType?: string;
-  dimensions?: string;
-  blurhash?: string;
-  alt?: string;
-  x?: string;
-  fallback?: string[];
-  image?: string[];
-  service?: string;
-}

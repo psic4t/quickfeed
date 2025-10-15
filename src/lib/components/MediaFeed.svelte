@@ -14,14 +14,7 @@
 	let touchStartY = 0;
 	let touchEndY = 0;
 	let isDragging = false;
-	let wheelTimeout: number;
 	let loadMoreTriggered = false;
-	
-	// Virtual scrolling - only render items near current index
-	const BUFFER_SIZE = 2; // Render 2 items before and after current
-	$: visibleStartIndex = Math.max(0, currentIndex - BUFFER_SIZE);
-	$: visibleEndIndex = Math.min(mediaEvents.length - 1, currentIndex + BUFFER_SIZE);
-	$: visibleEvents = mediaEvents.slice(visibleStartIndex, visibleEndIndex + 1);
 
 	// Check if we should load more events
 	$: if (hasMoreEvents && !isLoadingMore && !loadMoreTriggered && 
@@ -53,7 +46,7 @@
 		// Allow more time for smooth animation to complete
 		setTimeout(() => {
 			isScrolling = false;
-		}, 300);
+		}, 150);
 	}
 
 	function handleWheel(event: WheelEvent) {
@@ -61,18 +54,11 @@
 		
 		event.preventDefault();
 		
-		// Debounce wheel events for better performance
-		if (wheelTimeout) clearTimeout(wheelTimeout);
-		
-		wheelTimeout = setTimeout(() => {
-			if (event.deltaY > 0) {
-				// Scroll down
-				scrollToIndex(currentIndex + 1);
-			} else {
-				// Scroll up
-				scrollToIndex(currentIndex - 1);
-			}
-		}, 8); // ~120fps for faster response
+		if (event.deltaY > 0) {
+			scrollToIndex(currentIndex + 1);
+		} else {
+			scrollToIndex(currentIndex - 1);
+		}
 	}
 
 	function handleTouchStart(event: TouchEvent) {
@@ -113,9 +99,7 @@
 			container.addEventListener('touchmove', handleTouchMove, { passive: true });
 			container.addEventListener('touchend', handleTouchEnd, { passive: true });
 			
-			// Optimize scroll performance
-			container.style.willChange = 'transform';
-			container.style.transform = 'translateZ(0)';
+
 		}
 		
 		return () => {
@@ -125,13 +109,9 @@
 				container.removeEventListener('touchmove', handleTouchMove);
 				container.removeEventListener('touchend', handleTouchEnd);
 				
-				// Clean up performance optimizations
-				container.style.willChange = '';
-				container.style.transform = '';
+
 			}
-			if (wheelTimeout) {
-				clearTimeout(wheelTimeout);
-			}
+
 		};
 	});
 
@@ -208,7 +188,7 @@
 		contain: layout style paint;
 		will-change: transform;
 		transform: translateZ(0);
-		transition: opacity 0.2s ease;
+		transition: opacity 0.1s ease;
 	}
 
 	.feed-item:not(.active) {
@@ -251,7 +231,7 @@
 		padding: 8px;
 		border-radius: 8px;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		transition: all 0.1s ease;
 		display: flex;
 		align-items: center;
 		justify-content: center;
