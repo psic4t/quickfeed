@@ -26,3 +26,5 @@
 - Types in `src/lib/types.ts`
 - Config in `src/lib/config.ts`
 - Routes in `src/routes/`
+
+When you need to search docs, use `context7` tools.

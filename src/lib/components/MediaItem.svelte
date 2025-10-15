@@ -242,9 +242,6 @@
 			{/if}
 			<div class="meta">
 				<span class="time">{formatTimeAgo(event.created_at)}</span>
-				{#if event.published_at}
-					<span class="published">Published {formatTimeAgo(event.published_at)}</span>
-				{/if}
 			</div>
 		</div>
 
