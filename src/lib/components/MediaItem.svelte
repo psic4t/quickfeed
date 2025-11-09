@@ -318,8 +318,14 @@
 {/if}
 
 <style>
+	/* CSS custom properties for safe areas */
+	:root {
+		--safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+		--mobile-browser-height: 60px; /* Estimated browser bar height */
+	}
+
 	.media-item {
-		height: 100vh;
+		height: 100dvh; /* Dynamic viewport height */
 		width: 100vw;
 		position: relative;
 		background: #000;
@@ -395,7 +401,7 @@
 		left: 0;
 		right: 0;
 		background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
-		padding: 2rem;
+		padding: 2rem 2rem calc(2rem + var(--safe-area-inset-bottom) + var(--mobile-browser-height));
 		color: white;
 		overflow-x: hidden;
 	}
@@ -717,8 +723,7 @@
 		}
 
 		.content-overlay {
-			padding: 1rem;
-			padding-top: 0.5rem;
+			padding: 1rem 1rem calc(1rem + var(--safe-area-inset-bottom) + var(--mobile-browser-height));
 		}
 
 		.title {

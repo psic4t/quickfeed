@@ -27,4 +27,22 @@
 - Config in `src/lib/config.ts`
 - Routes in `src/routes/`
 
+## Mobile Viewport Implementation
+
+**Problem**: Profile Pic and "View JSON" button not visible on mobile browsers due to viewport height issues with browser address bar.
+
+**Solution**: CSS-based safe area padding using `env()` variables and dynamic viewport height.
+
+**Key Changes**:
+- `app.html`: Added `viewport-fit=cover` to meta viewport tag
+- `MediaItem.svelte`:
+  - Uses `100dvh` instead of `100vh` for dynamic viewport height
+  - Added CSS custom properties: `--safe-area-inset-bottom: env(safe-area-inset-bottom, 0px)`
+  - Bottom overlay padding: `calc(2rem + var(--safe-area-inset-bottom) + var(--mobile-browser-height))`
+  - 60px estimated browser height added to account for mobile browser UI
+
+**Browser Support**: Modern browsers (Chrome 108+, Safari 16+) with fallbacks for older browsers.
+
+**Testing**: Verify Profile Pic and JSON button visibility on iOS Safari, Android Chrome, and PWA mode.
+
 When you need to search docs, use `context7` tools.

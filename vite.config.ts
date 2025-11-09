@@ -7,6 +7,7 @@ export default defineConfig({
     sveltekit(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
       includeAssets: ['favicon-16x16.png', 'favicon-32x32.png', 'robots.txt'],
       manifest: {
         name: 'QuickFeed - Nostr Media Feed',
@@ -69,6 +70,10 @@ export default defineConfig({
             },
           },
         ],
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module',
       },
     }),
   ],
